@@ -4,6 +4,7 @@
 #define ALIVE_COLOR 0x00FF00FF
 #define DEAD_COLOR 0x000000FF
 
+// Conway's Game of Life
 void app()
 {
     int cur_field[SIM_X_SIZE][SIM_Y_SIZE] = { 0 };
