@@ -10,7 +10,7 @@ void sim_init()
     SDL_Init(SDL_INIT_VIDEO);
 
     window = SDL_CreateWindow("sim", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SIM_X_SIZE, SIM_Y_SIZE, 0);
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE | SDL_RENDERER_PRESENTVSYNC);
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
 
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(renderer);

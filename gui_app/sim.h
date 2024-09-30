@@ -1,7 +1,7 @@
 #pragma once
 
-#define SIM_X_SIZE 1024
-#define SIM_Y_SIZE 1024
+#define SIM_X_SIZE 512
+#define SIM_Y_SIZE 512
 
 void sim_init();
 void sim_destroy();
