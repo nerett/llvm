@@ -14,6 +14,7 @@ SUB r1 r2 imm
 BR l1
 BLE r1 imm l1 l2
 BEQ r1 imm l1 l2
+HLT
 
 PUT_PIXEL r1 r2 imm
 FLUSH

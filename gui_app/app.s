@@ -110,3 +110,4 @@
 :exit
     FREEM r0
     FREEM r1
+    HLT
