@@ -25,14 +25,14 @@
     INM r1
 
     MOV r3 0
-    MOV r4 0
-    MOV r5 0
     BR loop_epoch
 
 :loop_epoch
+    MOV r4 0
     BLE r3 2 loop_x exit
 
 :loop_x
+    MOV r5 0
     BLE r4 512 loop_y loop_epoch
 
 :loop_y
@@ -82,7 +82,7 @@
     BEQ r6 3 draw_alive draw_dead
 
 :draw_alive
-    STR r1 r9 1
+    STR r1 r4 r5 1
     PUT_PIXEL r4 r5 16711935
 
     BR body_end
@@ -99,7 +99,6 @@
     ADD r4 r4 1
     ADD r5 r5 1
 
-    MOV r11 0
     BR swap
 
 :swap
@@ -109,3 +108,5 @@
     BR loop_epoch
 
 :exit
+    FREEM r0
+    FREEM r1
