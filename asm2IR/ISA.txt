@@ -1,0 +1,19 @@
+ALLOCM r1
+LIFETIME_START r1
+FREEM r1
+CPYM r1 r2
+INM r1
+
+STR r1 r2 r3 imm
+LDA r1 r2 r3 r4
+
+MOV r1 imm
+ADD r1 r2 imm
+SUB r1 r2 imm
+
+BR l1
+BLE r1 imm l1 l2
+BEQ r1 imm l1 l2
+
+PUT_PIXEL r1 r2 imm
+FLUSH
