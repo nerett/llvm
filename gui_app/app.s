@@ -1,4 +1,4 @@
-:entry
+entry
     ALLOCM r0
     ALLOCM r1
 
@@ -27,18 +27,18 @@
     MOV r3 0
     BR loop_epoch
 
-:loop_epoch
+loop_epoch
     MOV r4 0
     BLE r3 2 loop_x exit
 
-:loop_x
+loop_x
     MOV r5 0
     BLE r4 512 loop_y loop_epoch
 
-:loop_y
+loop_y
     BLE r5 512 body loop_x
 
-:body
+body
     MOV r6 0
 
     SUB r7 r4 1
@@ -81,18 +81,18 @@
 
     BEQ r6 3 draw_alive draw_dead
 
-:draw_alive
+draw_alive
     STR r1 r4 r5 1
     PUT_PIXEL r4 r5 16711935
 
     BR body_end
 
-:draw_dead
+draw_dead
     PUT_PIXEL r4 r5 255
 
     BR body_end
 
-:body_end
+body_end
     FLUSH
 
     ADD r3 r3 1
@@ -101,13 +101,13 @@
 
     BR swap
 
-:swap
+swap
     CPYM r0 r1
     INM r1
 
     BR loop_epoch
 
-:exit
+exit
     FREEM r0
     FREEM r1
     HLT
