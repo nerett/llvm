@@ -31,14 +31,6 @@ void do_FLUSH() {
     sim_flush();
 }
 
-void do_CPYM() {
-
-}
-
-void do_INM() {
-
-}
-
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         outs() << "[ERROR] Need 1 argument: file with assembler code\n";
@@ -198,7 +190,7 @@ int main(int argc, char *argv[]) {
             Value *arg3 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
 
             input >> arg;
-            outs() << " " << arg;
+            outs() << " " << arg << "\n";
             Value *arg4 = builder.getInt64(std::stoll(arg));
 
             Value* x = builder.CreateURem(arg2, builder.getInt64(MDIM));
@@ -320,11 +312,11 @@ int main(int argc, char *argv[]) {
             Value *imm = builder.getInt64(std::stoll(arg));
 
             input >> arg;
-            outs() << "\t\tbranch to " << arg << "\n";
+            outs() << "\t\tBRANCH -> " << arg << "\n";
             outs() << "\t} else {\n";
 
             input >> name;
-            outs() << "\t\tbranch to " << name << "\n";
+            outs() << "\t\tBRANCH -> " << name << "\n";
             outs() << "\t}\n";
 
             Value *icmp_eq_res =
@@ -369,11 +361,12 @@ int main(int argc, char *argv[]) {
         builder.SetInsertPoint(BBMap[name]);
     }
 
+    bool verif = verifyFunction(*mainFunc, &outs());
+    outs() << "[VERIFICATION] " << (!verif ? "OK\n\n" : "FAIL\n\n");
+
     outs() << "\n#[LLVM IR]:\n";
     module->print(outs(), nullptr);
     outs() << "\n";
-    bool verif = verifyFunction(*mainFunc, &outs());
-    outs() << "[VERIFICATION] " << (!verif ? "OK\n\n" : "FAIL\n\n");
 
     outs() << "\n#[Running code]\n";
     InitializeNativeTarget();
