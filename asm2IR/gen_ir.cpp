@@ -31,6 +31,14 @@ void do_FLUSH() {
     sim_flush();
 }
 
+void do_DUMP() {
+    outs() << "DUMP: {\n";
+    for (int i = 0; i < REG_FILE_SIZE; ++i) {
+        outs() << "\tr" << i << " = " << REG_FILE[i] << "\n";
+    }
+    outs() << "} //DUMP\n";
+}
+
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         outs() << "[ERROR] Need 1 argument: file with assembler code\n";
@@ -78,7 +86,7 @@ int main(int argc, char *argv[]) {
                    !name.compare("BR")) {
             input >> arg;
             continue;
-        } else if (!name.compare("FLUSH") || !name.compare("HLT")) {
+        } else if (!name.compare("FLUSH") || !name.compare("HLT") || !name.compare("DUMP")) {
             continue;
         }
 
@@ -98,87 +106,95 @@ int main(int argc, char *argv[]) {
 
     FunctionCallee doPutPixelFunc = module->getOrInsertFunction("do_PUT_PIXEL", doPutPixelFuncType);
     FunctionCallee doFlushFunc = module->getOrInsertFunction("do_FLUSH", voidFuncType);
+    FunctionCallee doDumpFunc = module->getOrInsertFunction("do_DUMP", voidFuncType);
 
     ArrayType *arrayTy = ArrayType::get(IntegerType::get(context, 8), MSIZE);
     PointerType *arrayTyPtr = PointerType::get(arrayTy, 0);
 
-    ArrayRef<Type *> llvmLifetimeStartArgTypes = {Type::getInt64Ty(context), builder.getPtrTy()};
-    FunctionType *llvmLifetimeStartFuncType = FunctionType::get(voidType, llvmLifetimeStartArgTypes, false);
+
+    ArrayRef<Type *> llvmLifetimeStartArgTypes = {Type::getInt64Ty(context), PointerType::get(context, 0)};
+    FunctionType *llvmLifetimeStartFuncType = FunctionType::get(Type::getVoidTy(context), llvmLifetimeStartArgTypes, false);
     Function *llvmLifetimeStartFunc = Function::Create(
         llvmLifetimeStartFuncType, Function::ExternalLinkage, "llvm.lifetime.start.p0", module);
 
-    ArrayRef<Type *> llvmLifetimeEndArgTypes = {Type::getInt64Ty(context), builder.getPtrTy()};
+    ArrayRef<Type *> llvmLifetimeEndArgTypes = {Type::getInt64Ty(context), PointerType::get(context, 0)};
     FunctionType *llvmLifetimeEndFuncType =
         FunctionType::get(voidType, llvmLifetimeEndArgTypes, false);
     Function *llvmLifetimeEndFunc = Function::Create(
         llvmLifetimeEndFuncType, Function::ExternalLinkage, "llvm.lifetime.end.p0", module);
 
-    ArrayRef<Type *> llvmMemsetArgTypes = {builder.getPtrTy(), Type::getInt8Ty(context),
-                                           Type::getInt64Ty(context), Type::getInt1Ty(context)};
-    FunctionType *llvmMemsetFuncType = FunctionType::get(voidType, llvmMemsetArgTypes, false);
-    Function *llvmMemsetFunc = Function::Create(
-        llvmMemsetFuncType, Function::ExternalLinkage, "llvm.memset.p0.i64", module);
+    ArrayRef<Type *> memsetArgTypes = {PointerType::get(context, 0), builder.getInt8Ty(), builder.getInt64Ty()};
+    FunctionType *memsetFuncType = FunctionType::get(builder.getVoidTy(), memsetArgTypes, false);
+    Function *memsetFunc = Function::Create(
+        memsetFuncType, Function::ExternalLinkage, "memset", module);
 
-    ArrayRef<Type *> llvmMemcpyArgTypes = {builder.getPtrTy(), builder.getPtrTy(),
-                                           Type::getInt64Ty(context), Type::getInt1Ty(context)};
-    FunctionType *llvmMemcpyFuncType = FunctionType::get(voidType, llvmMemcpyArgTypes, false);
-    Function *llvmMemcpyFunc = Function::Create(
-        llvmMemcpyFuncType, Function::ExternalLinkage, "llvm.memcpy.p0.p0.i64", module);
+    ArrayRef<Type *> memcpyArgTypes = {PointerType::get(context, 0), PointerType::get(context, 0), builder.getInt64Ty()};
+    FunctionType *memcpyFuncType = FunctionType::get(builder.getVoidTy(), memcpyArgTypes, false);
+    Function *memcpyFunc = Function::Create(
+        memcpyFuncType, Function::ExternalLinkage, "memcpy", module);
+
 
     while (input >> name) {
         if (!name.compare("ALLOCM")) {
             input >> arg;
-            outs() << "\tALLOCATE: " << arg << "\n";
-
+            outs() << "\tALLOCM " << arg << "\n";
             Value *arg1 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
-            llvm::AllocaInst *alloca = builder.CreateAlloca(ArrayType::get(builder.getInt8Ty(), MSIZE), nullptr);
+
+            llvm::AllocaInst* alloca = builder.CreateAlloca(ArrayType::get(Type::getInt8Ty(context), MSIZE), nullptr);
             alloca->setAlignment(llvm::Align(1));
             builder.CreateStore(alloca, arg1);
+
+            // builder.CreateCall(llvmLifetimeStartFunc, {builder.getInt64(MSIZE), alloca});
+            // builder.CreateCall(llvmMemsetFunc, {alloca, builder.getInt8(0), builder.getInt64(MSIZE), builder.getInt1(0)});
 
             continue;
         } else if (!name.compare("LIFETIME_START")) {
             input >> arg;
-            Value *arg1 =
-                builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
+            outs() << "\tLIFETIME_START " << arg << "\n";
+            Value *arg1 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
+
+            Value* ptr = builder.CreateLoad(PointerType::get(context, 0), arg1);
 
             builder.CreateCall(llvmLifetimeStartFunc,
-                               {builder.getInt64(MSIZE), builder.CreateLoad(arrayTyPtr, arg1)});
-            builder.CreateCall(llvmMemsetFunc,
-                               {builder.CreateLoad(arrayTyPtr, arg1), builder.getInt8(0),
-                                builder.getInt64(MSIZE), builder.getInt1(0)});
+                              {builder.getInt64(MSIZE), ptr});
+            builder.CreateCall(memsetFunc,
+                              {ptr, builder.getInt8(0), builder.getInt64(MSIZE)});
 
             continue;
         } else if (!name.compare("FREEM")) {
             input >> arg;
+            outs() << "\tFREEM " << arg << "\n";
             Value *arg1 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
-            builder.CreateCall(llvmLifetimeEndFunc, {builder.getInt64(1250), arg1});
+
+            builder.CreateCall(llvmLifetimeEndFunc, {builder.getInt64(MSIZE), builder.CreateLoad(arrayTyPtr, arg1)});
 
             continue;
         } else if (!name.compare("CPYM")) {
             input >> arg;
+            outs() << "\tCPYM " << arg;
             Value *arg1 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
 
             input >> arg;
+            outs() << " " << arg << "\n";
             Value *arg2 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
 
-            builder.CreateCall(llvmMemcpyFunc,
+            builder.CreateCall(memcpyFunc,
                                {builder.CreateLoad(arrayTyPtr, arg1), builder.CreateLoad(arrayTyPtr, arg2),
-                                builder.getInt64(MSIZE), builder.getInt1(0)});
+                                builder.getInt64(MSIZE)});
 
             continue;
         } else if (!name.compare("INM")) {
             input >> arg;
+            outs() << "\tINM " << arg << "\n";
             Value *arg1 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
 
-            builder.CreateCall(llvmMemsetFunc,
-                               {builder.CreateLoad(arrayTyPtr, arg1), builder.getInt8(0),
-                                builder.getInt64(MSIZE), builder.getInt1(0)});
+            builder.CreateCall(memsetFunc,
+                              {builder.CreateLoad(PointerType::get(context, 0), arg1), builder.getInt8(0), builder.getInt64(MSIZE)});
 
             continue;
         } else if (!name.compare("STR")) {
             input >> arg;
             outs() << "\tSTR " << arg;
-
             Value *arg1 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
 
             input >> arg;
@@ -193,8 +209,8 @@ int main(int argc, char *argv[]) {
             outs() << " " << arg << "\n";
             Value *arg4 = builder.getInt64(std::stoll(arg));
 
-            Value* x = builder.CreateURem(arg2, builder.getInt64(MDIM));
-            Value* y = builder.CreateURem(arg3, builder.getInt64(MDIM));
+            Value* x = builder.CreateURem(builder.CreateLoad(builder.getInt64Ty(), arg2), builder.getInt64(MDIM));
+            Value* y = builder.CreateURem(builder.CreateLoad(builder.getInt64Ty(), arg3), builder.getInt64(MDIM));
             Value* offset = builder.CreateAdd(x, builder.CreateMul(y, builder.getInt64(MDIM)));
 
             Value *gep_val = builder.CreateInBoundsGEP(builder.getInt8Ty(),
@@ -204,34 +220,40 @@ int main(int argc, char *argv[]) {
             continue;
         } else if (!name.compare("LDA")) {
             input >> arg;
+            outs() << "\tLDA " << arg;
             Value *arg1 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
 
             input >> arg;
+            outs() << " " << arg;
             Value *arg2 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
 
             input >> arg;
+            outs() << " " << arg;
             Value *arg3 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
 
             input >> arg;
+            outs() << " " << arg << "\n";
             Value *arg4 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
 
-            Value* x = builder.CreateURem(arg3, builder.getInt64(MDIM));
-            Value* y = builder.CreateURem(arg4, builder.getInt64(MDIM));
+            Value* x = builder.CreateURem(builder.CreateLoad(builder.getInt64Ty(), arg3), builder.getInt64(MDIM));
+            Value* y = builder.CreateURem(builder.CreateLoad(builder.getInt64Ty(), arg4), builder.getInt64(MDIM));
             Value* offset = builder.CreateAdd(x, builder.CreateMul(y, builder.getInt64(MDIM)));
 
             Value *gep_val = builder.CreateInBoundsGEP(builder.getInt8Ty(),
                                                        builder.CreateLoad(arrayTyPtr, arg2), offset);
 
             Value* curr = builder.CreateLoad(builder.getInt64Ty(), arg4);
-            Value* loaded = builder.CreateLoad(arrayTyPtr, gep_val);
+            Value* loaded = builder.CreateLoad(builder.getInt64Ty(), gep_val);
             builder.CreateStore(builder.CreateAdd(curr, loaded), gep_val);
 
             continue;
         } else if (!name.compare("MOV")) {
             input >> arg;
+            outs() << "\tMOV " << arg;
             Value *arg1 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
 
             input >> arg;
+            outs() << " " << arg << "\n";
             Value *arg2 = builder.getInt64(std::stoll(arg));
 
             builder.CreateStore(arg2, arg1);
@@ -280,32 +302,28 @@ int main(int argc, char *argv[]) {
         } else if (!name.compare("BLE")) {
             input >> arg;
             outs() << "\tif (" << arg;
-            Value *arg1_ptr =
-                builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
+            Value *arg1_ptr = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
 
             input >> arg;
-            outs() << " == " << arg << ") {\n";
+            outs() << " <= " << arg << ") {\n";
             Value *imm = builder.getInt64(std::stoll(arg));
 
             input >> arg;
-            outs() << "\t\tbranch to " << arg << "\n";
+            outs() << "\t\tBRANCH -> " << arg << "\n";
             outs() << "\t} else {\n";
 
             input >> name;
-            outs() << "\t\tbranch to " << name << "\n";
+            outs() << "\t\tBRANCH -> " << name << "\n";
             outs() << "\t}\n";
 
-            Value *icmp_eq_res =
-                builder.CreateICmpULT(builder.CreateLoad(builder.getInt64Ty(), arg1_ptr), imm);
+            Value *icmp_eq_res =builder.CreateICmpULT(builder.CreateLoad(builder.getInt64Ty(), arg1_ptr), imm);
             builder.CreateCondBr(icmp_eq_res, BBMap[arg], BBMap[name]);
-            builder.SetInsertPoint(BBMap[arg]);
 
             continue;
         } else if (!name.compare("BEQ")) {
             input >> arg;
             outs() << "\tif (" << arg;
-            Value *arg1_ptr =
-                builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
+            Value *arg1_ptr = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
 
             input >> arg;
             outs() << " == " << arg << ") {\n";
@@ -319,40 +337,43 @@ int main(int argc, char *argv[]) {
             outs() << "\t\tBRANCH -> " << name << "\n";
             outs() << "\t}\n";
 
-            Value *icmp_eq_res =
-                builder.CreateICmpEQ(builder.CreateLoad(builder.getInt64Ty(), arg1_ptr), imm);
+            Value *icmp_eq_res = builder.CreateICmpEQ(builder.CreateLoad(builder.getInt64Ty(), arg1_ptr), imm);
             builder.CreateCondBr(icmp_eq_res, BBMap[arg], BBMap[name]);
-            builder.SetInsertPoint(BBMap[arg]);
 
             continue;
         } else if (!name.compare("HLT")) {
             outs() << "\tHLT\n";
             builder.CreateRetVoid();
-            if (input >> name) {
-                outs() << "BB " << name << "\n";
-                builder.SetInsertPoint(BBMap[name]);
-            }
 
             continue;
         } else if (!name.compare("PUT_PIXEL")) {
             input >> arg;
             outs() << "\tPUT_PIXEL " << arg;
-            Value *arg1 = builder.getInt64(std::stoll(arg.substr(1)));
+            Value *arg1 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
+
             input >> arg;
             outs() << " " << arg;
-            Value *arg2 = builder.getInt64(std::stoll(arg.substr(1)));
+            Value *arg2 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
+
             input >> arg;
             outs() << " " << arg << "\n";
-            Value *arg3 = builder.getInt64(std::stoll(arg.substr(1)));
-            input >> arg;
-            outs() << " " << arg << "\n";
-            Value *args[] = {arg1, arg2, arg3};
+            Value *arg3 = builder.getInt64(std::stoll(arg));
+
+            Value *args[] = {builder.CreateLoad(builder.getInt64Ty(), arg1),
+                             builder.CreateLoad(builder.getInt64Ty(), arg2),
+                             arg3};
+
             builder.CreateCall(doPutPixelFunc, args);
 
             continue;
         } else if (!name.compare("FLUSH")) {
-            outs() << "\tSIM_FLUSH\n";
+            outs() << "\tFLUSH\n";
             builder.CreateCall(doFlushFunc);
+
+            continue;
+        } else if (!name.compare("DUMP")) {
+            outs() << "\tDUMP\n";
+            builder.CreateCall(doDumpFunc);
 
             continue;
         }
@@ -361,12 +382,14 @@ int main(int argc, char *argv[]) {
         builder.SetInsertPoint(BBMap[name]);
     }
 
+    std::string str("debug.ll");
+    std::error_code err;
+    raw_fd_ostream output(str, err);
+    module->print(output, nullptr);
+
+    outs() << "[VERIFICATION] Started...\n";
     bool verif = verifyFunction(*mainFunc, &outs());
     outs() << "[VERIFICATION] " << (!verif ? "OK\n\n" : "FAIL\n\n");
-
-    outs() << "\n#[LLVM IR]:\n";
-    module->print(outs(), nullptr);
-    outs() << "\n";
 
     outs() << "\n#[Running code]\n";
     InitializeNativeTarget();
@@ -374,6 +397,22 @@ int main(int argc, char *argv[]) {
 
     ExecutionEngine *ee = EngineBuilder(std::unique_ptr<Module>(module)).create();
     ee->InstallLazyFunctionCreator([=](const std::string &fnName) -> void * {
+        if (fnName == "do_FLUSH") {
+            return reinterpret_cast<void *>(do_FLUSH);
+        }
+        if (fnName == "do_PUT_PIXEL") {
+            return reinterpret_cast<void *>(do_PUT_PIXEL);
+        }
+        if (fnName == "memset") {
+            return reinterpret_cast<void *>(memset);
+        }
+        if (fnName == "memcpy") {
+            return reinterpret_cast<void *>(memcpy);
+        }
+        if (fnName == "do_DUMP") {
+            return reinterpret_cast<void *>(do_DUMP);
+        }
+
         std::cout << "ERROR: unknown function: " << fnName << '\n';
         return nullptr;
     });
