@@ -214,8 +214,9 @@ int main(int argc, char *argv[]) {
             Value* offset = builder.CreateAdd(x, builder.CreateMul(y, builder.getInt64(MDIM)));
 
             Value *gep_val = builder.CreateInBoundsGEP(builder.getInt8Ty(),
-                                                       builder.CreateLoad(arrayTyPtr, arg1), offset);
-            builder.CreateStore(arg4, gep_val);
+                                                       builder.CreateLoad(PointerType::get(context, 0), arg1),
+                                                       offset);
+            builder.CreateStore(builder.CreateTrunc(arg4, Type::getInt8Ty(context)), gep_val);
 
             continue;
         } else if (!name.compare("LDA")) {
@@ -240,10 +241,12 @@ int main(int argc, char *argv[]) {
             Value* offset = builder.CreateAdd(x, builder.CreateMul(y, builder.getInt64(MDIM)));
 
             Value *gep_val = builder.CreateInBoundsGEP(builder.getInt8Ty(),
-                                                       builder.CreateLoad(arrayTyPtr, arg2), offset);
+                                                       builder.CreateLoad(PointerType::get(context, 0), arg2),
+                                                       offset);
 
             Value* curr = builder.CreateLoad(builder.getInt64Ty(), arg1);
-            Value* loaded = builder.CreateLoad(builder.getInt64Ty(), gep_val);
+            Value* loaded8 = builder.CreateLoad(builder.getInt8Ty(), gep_val);
+            Value* loaded = builder.CreateZExt(loaded8, Type::getInt64Ty(context));
             builder.CreateStore(builder.CreateAdd(curr, loaded), arg1);
 
             continue;
