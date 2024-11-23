@@ -242,9 +242,9 @@ int main(int argc, char *argv[]) {
             Value *gep_val = builder.CreateInBoundsGEP(builder.getInt8Ty(),
                                                        builder.CreateLoad(arrayTyPtr, arg2), offset);
 
-            Value* curr = builder.CreateLoad(builder.getInt64Ty(), arg4);
+            Value* curr = builder.CreateLoad(builder.getInt64Ty(), arg1);
             Value* loaded = builder.CreateLoad(builder.getInt64Ty(), gep_val);
-            builder.CreateStore(builder.CreateAdd(curr, loaded), gep_val);
+            builder.CreateStore(builder.CreateAdd(curr, loaded), arg1);
 
             continue;
         } else if (!name.compare("MOV")) {
