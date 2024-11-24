@@ -21,7 +21,7 @@ using namespace llvm;
 #define MSIZE 262144
 
 const int REG_FILE_SIZE = 32;
-uint64_t REG_FILE[REG_FILE_SIZE];
+int64_t REG_FILE[REG_FILE_SIZE];
 
 void do_PUT_PIXEL(uint64_t r1, uint64_t r2, uint64_t imm) {
     sim_put_pixel(r1, r2, imm);
@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
                    !name.compare("PUT_PIXEL")) {
             input >> arg >> arg >> arg;
             continue;
-        } else if (!name.compare("CPYM") || !name.compare("MOV")) {
+        } else if (!name.compare("CPYM") || !name.compare("MOV") || !name.compare("SWAP")) {
             input >> arg >> arg;
             continue;
         } else if (!name.compare("ALLOCM") || !name.compare("LIFETIME_START") ||
@@ -183,6 +183,22 @@ int main(int argc, char *argv[]) {
                                 builder.getInt64(MSIZE)});
 
             continue;
+        } else if (!name.compare("SWAP")) {
+            input >> arg;
+            outs() << "\tSWAP " << arg;
+            Value *arg1 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
+
+            input >> arg;
+            outs() << " " << arg << "\n";
+            Value *arg2 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
+
+            Value* val1 = builder.CreateLoad(builder.getInt64Ty(), arg1);
+            Value* val2 = builder.CreateLoad(builder.getInt64Ty(), arg2);
+
+            builder.CreateStore(val1, arg2);
+            builder.CreateStore(val2, arg1);
+
+            continue;
         } else if (!name.compare("INM")) {
             input >> arg;
             outs() << "\tINM " << arg << "\n";
@@ -209,8 +225,8 @@ int main(int argc, char *argv[]) {
             outs() << " " << arg << "\n";
             Value *arg4 = builder.getInt64(std::stoll(arg));
 
-            Value* x = builder.CreateURem(builder.CreateLoad(builder.getInt64Ty(), arg2), builder.getInt64(MDIM));
-            Value* y = builder.CreateURem(builder.CreateLoad(builder.getInt64Ty(), arg3), builder.getInt64(MDIM));
+            Value* x = builder.CreateSRem(builder.CreateAdd(builder.CreateLoad(builder.getInt64Ty(), arg2), builder.getInt64(MDIM)), builder.getInt64(MDIM));
+            Value* y = builder.CreateSRem(builder.CreateAdd(builder.CreateLoad(builder.getInt64Ty(), arg3), builder.getInt64(MDIM)), builder.getInt64(MDIM));
             Value* offset = builder.CreateAdd(x, builder.CreateMul(y, builder.getInt64(MDIM)));
 
             Value *gep_val = builder.CreateInBoundsGEP(builder.getInt8Ty(),
@@ -236,8 +252,8 @@ int main(int argc, char *argv[]) {
             outs() << " " << arg << "\n";
             Value *arg4 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
 
-            Value* x = builder.CreateURem(builder.CreateLoad(builder.getInt64Ty(), arg3), builder.getInt64(MDIM));
-            Value* y = builder.CreateURem(builder.CreateLoad(builder.getInt64Ty(), arg4), builder.getInt64(MDIM));
+            Value* x = builder.CreateSRem(builder.CreateAdd(builder.CreateLoad(builder.getInt64Ty(), arg3), builder.getInt64(MDIM)), builder.getInt64(MDIM));
+            Value* y = builder.CreateSRem(builder.CreateAdd(builder.CreateLoad(builder.getInt64Ty(), arg4), builder.getInt64(MDIM)), builder.getInt64(MDIM));
             Value* offset = builder.CreateAdd(x, builder.CreateMul(y, builder.getInt64(MDIM)));
 
             Value *gep_val = builder.CreateInBoundsGEP(builder.getInt8Ty(),

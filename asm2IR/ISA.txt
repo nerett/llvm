@@ -8,6 +8,7 @@ STR r1 r2 r3 imm
 LDA r1 r2 r3 r4
 
 MOV r1 imm
+SWAP r1 r2
 ADD r1 r2 imm
 SUB r1 r2 imm
 
