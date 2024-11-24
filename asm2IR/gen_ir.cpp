@@ -17,8 +17,8 @@
 
 using namespace llvm;
 
-#define MDIM 512
-#define MSIZE 262144
+const int MDIM = 512;
+const int MSIZE = MDIM * MDIM;
 
 const int REG_FILE_SIZE = 32;
 int64_t REG_FILE[REG_FILE_SIZE];
@@ -108,10 +108,6 @@ int main(int argc, char *argv[]) {
     FunctionCallee doFlushFunc = module->getOrInsertFunction("do_FLUSH", voidFuncType);
     FunctionCallee doDumpFunc = module->getOrInsertFunction("do_DUMP", voidFuncType);
 
-    ArrayType *arrayTy = ArrayType::get(IntegerType::get(context, 8), MSIZE);
-    PointerType *arrayTyPtr = PointerType::get(arrayTy, 0);
-
-
     ArrayRef<Type *> llvmLifetimeStartArgTypes = {Type::getInt64Ty(context), PointerType::get(context, 0)};
     FunctionType *llvmLifetimeStartFuncType = FunctionType::get(Type::getVoidTy(context), llvmLifetimeStartArgTypes, false);
     Function *llvmLifetimeStartFunc = Function::Create(
@@ -139,9 +135,6 @@ int main(int argc, char *argv[]) {
             alloca->setAlignment(llvm::Align(1));
             builder.CreateStore(alloca, arg1);
 
-            // builder.CreateCall(llvmLifetimeStartFunc, {builder.getInt64(MSIZE), alloca});
-            // builder.CreateCall(llvmMemsetFunc, {alloca, builder.getInt8(0), builder.getInt64(MSIZE), builder.getInt1(0)});
-
             continue;
         } else if (!name.compare("LIFETIME_START")) {
             input >> arg;
@@ -161,7 +154,8 @@ int main(int argc, char *argv[]) {
             outs() << "\tFREEM " << arg << "\n";
             Value *arg1 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
 
-            builder.CreateCall(llvmLifetimeEndFunc, {builder.getInt64(MSIZE), builder.CreateLoad(arrayTyPtr, arg1)});
+            builder.CreateCall(llvmLifetimeEndFunc,
+                               {builder.getInt64(MSIZE), builder.CreateLoad(PointerType::get(context, 0), arg1)});
 
             continue;
         } else if (!name.compare("SWAP")) {

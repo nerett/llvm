@@ -1,20 +1,20 @@
-ALLOCM r1
-LIFETIME_START r1
-FREEM r1
-INM r1
+ALLOCM r1               # Allocate MSIZE = MDIM * MDIM memory, put pointer into r1
+LIFETIME_START r1       # Start lifetime for memory pointed by value of r1, initialize this memory with zeros
+FREEM r1                # End lifetime for memory pointed by value of r1
+INM r1                  # Fill memory pointed by value of r1 with zeros
 
-STR r1 r2 r3 imm
-LDA r1 r2 r3 r4
+STR r1 r2 r3 imm        # r1[r2 mod MDIM][r3 mod MDIM] = imm
+LDA r1 r2 r3 r4         # r1 += r2[r3 mod MDIM][r4 mod MDIM]
 
-MOV r1 imm
-SWAP r1 r2
-ADD r1 r2 imm
-SUB r1 r2 imm
+MOV r1 imm              # r1 = imm
+SWAP r1 r2              # Swap values in r1 and r2
+ADD r1 r2 imm           # r1 = r2 + imm
+SUB r1 r2 imm           # r1 = r2 - imm
 
-BR l1
-BLE r1 imm l1 l2
-BEQ r1 imm l1 l2
-HLT
+BR l1                   # Branch to l1 label
+BLE r1 imm l1 l2        # If (r1 <= imm) { BR l1 } else { BR l2 }
+BEQ r1 imm l1 l2        # If (r1 == imm) { BR l1 } else { BR l2 }
+HLT                     # Return void
 
-PUT_PIXEL r1 r2 imm
-FLUSH
+PUT_PIXEL r1 r2 imm     # Call function sim_put_pixel(r1, r2, imm)
+FLUSH                   # Call function sim_flush()
