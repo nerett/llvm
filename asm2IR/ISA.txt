@@ -1,7 +1,6 @@
 ALLOCM r1
 LIFETIME_START r1
 FREEM r1
-CPYM r1 r2
 INM r1
 
 STR r1 r2 r3 imm

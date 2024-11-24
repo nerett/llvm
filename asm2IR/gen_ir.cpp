@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
                    !name.compare("PUT_PIXEL")) {
             input >> arg >> arg >> arg;
             continue;
-        } else if (!name.compare("CPYM") || !name.compare("MOV") || !name.compare("SWAP")) {
+        } else if (!name.compare("MOV") || !name.compare("SWAP")) {
             input >> arg >> arg;
             continue;
         } else if (!name.compare("ALLOCM") || !name.compare("LIFETIME_START") ||
@@ -128,11 +128,6 @@ int main(int argc, char *argv[]) {
     Function *memsetFunc = Function::Create(
         memsetFuncType, Function::ExternalLinkage, "memset", module);
 
-    ArrayRef<Type *> memcpyArgTypes = {PointerType::get(context, 0), PointerType::get(context, 0), builder.getInt64Ty()};
-    FunctionType *memcpyFuncType = FunctionType::get(builder.getVoidTy(), memcpyArgTypes, false);
-    Function *memcpyFunc = Function::Create(
-        memcpyFuncType, Function::ExternalLinkage, "memcpy", module);
-
 
     while (input >> name) {
         if (!name.compare("ALLOCM")) {
@@ -167,20 +162,6 @@ int main(int argc, char *argv[]) {
             Value *arg1 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
 
             builder.CreateCall(llvmLifetimeEndFunc, {builder.getInt64(MSIZE), builder.CreateLoad(arrayTyPtr, arg1)});
-
-            continue;
-        } else if (!name.compare("CPYM")) {
-            input >> arg;
-            outs() << "\tCPYM " << arg;
-            Value *arg1 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
-
-            input >> arg;
-            outs() << " " << arg << "\n";
-            Value *arg2 = builder.CreateConstGEP2_64(regFileType, regFile, 0, std::stoll(arg.substr(1)));
-
-            builder.CreateCall(memcpyFunc,
-                               {builder.CreateLoad(arrayTyPtr, arg1), builder.CreateLoad(arrayTyPtr, arg2),
-                                builder.getInt64(MSIZE)});
 
             continue;
         } else if (!name.compare("SWAP")) {
@@ -424,9 +405,6 @@ int main(int argc, char *argv[]) {
         }
         if (fnName == "memset") {
             return reinterpret_cast<void *>(memset);
-        }
-        if (fnName == "memcpy") {
-            return reinterpret_cast<void *>(memcpy);
         }
         if (fnName == "do_DUMP") {
             return reinterpret_cast<void *>(do_DUMP);
